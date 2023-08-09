@@ -1,6 +1,9 @@
 /// A key-value store for UA and msglib to write and read any arbitrary data:
 /// 1) UA composability: UA can write data to the store, and other UA can read it.
 /// 2) New data types for msglib: new msglibs in the future can write data to the store for UA to read.
+
+//UA represents an unique identity
+//bulletin -- message published to all users
 module layerzero::bulletin {
     use aptos_std::table::{Self, Table};
     use std::error;
@@ -22,7 +25,7 @@ module layerzero::bulletin {
     // }
 
     struct MsgLibBulletin has key {
-        // msglib version -> bulletin
+        // msglib version -> bulletin(key:value)
         bulletin: Table<SemVer, Bulletin>
     }
 
@@ -31,6 +34,19 @@ module layerzero::bulletin {
             bulletin: table::new()
         })
     }
+
+    // public fun assert_type_signer<TYPE>(account: &signer) {
+    //     assert!(type_address<TYPE>() == address_of(account), error::permission_denied(ELAYERZERO_PERMISSION_DENIED));
+    // }
+    // public fun type_address<TYPE>(): address {
+    //     account_address(&type_of<TYPE>())
+    // }
+
+    // struct TypeInfo has copy, drop, store {
+    //     account_address: address,
+    //     module_name: vector<u8>,
+    //     struct_name: vector<u8>,
+    // }
 
     public(friend) fun init_ua_bulletin<UA>(account: &signer) {
         assert_type_signer<UA>(account); // address_Addr::moudule_name  only the address_Addrcould init the UA
@@ -53,7 +69,7 @@ module layerzero::bulletin {
 
     public(friend) fun ua_write(ua_address: address, key: vector<u8>, value: vector<u8>) acquires Bulletin {
         let bulletin = borrow_global_mut<Bulletin>(ua_address);
-        table::upsert(&mut bulletin.values, key, value)
+        table::upsert(&mut bulletin.values, key, value) //key:value
     }
 
     public(friend) fun msglib_write(msglib_version: SemVer, key: vector<u8>, value: vector<u8>) acquires MsgLibBulletin {
@@ -89,7 +105,7 @@ module layerzero::bulletin {
 
     #[test_only]
     public fun init_module_for_test(account: &signer) {
-        init_module(account);
+        init_module(account); // achieve resource {version:key:value}
     }
 
     #[test_only]
@@ -107,7 +123,10 @@ module layerzero::bulletin {
 
         init_msglib_bulletin(build_version(1, 0));
         init_msglib_bulletin(build_version(2, 0));
-        init_ua_bulletin<TestUa>(ua);
+        init_ua_bulletin<TestUa>(ua);  //key:value
+            //     account_address: test:0x8
+    //     module_name: bulletin_test,
+    //     struct_name: TestUa,
     }
 
     #[test(lz = @layerzero, ua = @test)]

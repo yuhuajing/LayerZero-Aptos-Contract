@@ -5,6 +5,8 @@
 //          note that the packets can arrive out of order
 //     (3) inbound() receive on endpoint.lz_receive() -> inbound_nonce++  receive only when the tx has been blocked in the sender_chain
 //          packets are consumed by order
+
+//message control 
 module layerzero::channel {
     use aptos_std::table::{Self, Table};
     use layerzero_common::utils::{type_address, assert_type_signer};
@@ -13,9 +15,8 @@ module layerzero::channel {
     use aptos_framework::account;
 
     friend layerzero::endpoint;
-
     const ELAYERZERO_INVALID_NONCE: u64 = 0x00;
-
+//every address has these specific charactors {chain_id, addr}
     struct Remote has copy, drop {
         chain_id: u64,
         addr: vector<u8>
@@ -24,7 +25,7 @@ module layerzero::channel {
     struct Channels has key {
         states: Table<Remote, Channel>,
     }
-
+// chain_addr messages info (sended_Tx_Num,received_Tx_Num,Tx_info_By_Nonce)
     struct Channel has store {
         outbound_nonce: u64,
         inbound_nonce: u64,
@@ -58,18 +59,22 @@ module layerzero::channel {
 
     public(friend) fun register<UA>(account: &signer) {
         assert_type_signer<UA>(account); // ADDR of the module  only the owner of the module could register channels resources.
+    //     account_address: layerzero,
+    //     module_name: channel,
+    //     struct_name: UA,
+    //Identity a unique User  remote{chain_id,addr}:channel{sended_Tx_Num,received_Tx_Num,Tx_info_By_Nonce}
         move_to(account, Channels {
             states: table::new()
         });
     }
 
     public(friend) fun receive<UA>(src_chain_id: u64, src_address: vector<u8>, nonce: u64, payload_hash: vector<u8>) acquires Channels, EventStore {
-        let ua_address = type_address<UA>(); // the owner of the module @layerzero
+        let ua_address = type_address<UA>(); // the owner of the UA,here is @layerzero
         let channels = borrow_global_mut<Channels>(ua_address);
         let channel = get_channel_mut(channels, src_chain_id, src_address);
 
         assert!(nonce > channel.inbound_nonce, error::invalid_argument(ELAYERZERO_INVALID_NONCE));
-        table::upsert(&mut channel.payload_hashs, nonce, payload_hash);
+        table::upsert(&mut channel.payload_hashs, nonce, payload_hash); // Tx key:value, retrieve tx by nonce
 
         // emit the publish event
         let event_store = borrow_global_mut<EventStore>(@layerzero);
@@ -86,7 +91,7 @@ module layerzero::channel {
 
     // return the outbound nonce
     public(friend) fun outbound<UA>(dst_chain_id: u64, dst_address: vector<u8>): u64 acquires Channels, EventStore {
-        let channels = borrow_global_mut<Channels>(type_address<UA>());
+        let channels = borrow_global_mut<Channels>(type_address<UA>()); // achieve the unique info of the specific user
 
         let channel = get_channel_mut(channels, dst_chain_id, dst_address);
 
@@ -111,11 +116,11 @@ module layerzero::channel {
         let channel = get_channel_mut(channels, src_chain_id, src_address);
 
         channel.inbound_nonce = channel.inbound_nonce + 1;
+        // Has received the tx info before
         assert!(table::contains(&channel.payload_hashs, channel.inbound_nonce), error::not_found(ELAYERZERO_INVALID_NONCE));
 //execute by order
 // only execute once
         let hash = table::remove(&mut channel.payload_hashs, channel.inbound_nonce);
-
         // emit the receive event
         let event_store = borrow_global_mut<EventStore>(@layerzero);
         event::emit_event<MsgEvent>(
@@ -194,7 +199,7 @@ module layerzero::channel {
 
     #[test_only]
     public fun init_module_for_test(account: &signer) {
-        init_module(account);
+        init_module(account); // event resource 
     }
 
     #[test_only]
@@ -204,7 +209,7 @@ module layerzero::channel {
 
         aptos_account::create_account(signer::address_of(lz));
         init_module_for_test(lz);
-        register<TestUA>(lz);
+        register<TestUA>(lz); // 
     }
 
     #[test(lz = @layerzero)]
