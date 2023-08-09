@@ -51,7 +51,7 @@ module layerzero::executor_config {
         });
 
         move_to(account, ConfigStore {
-            config: table::new(),
+            config: table::new(),  // table<u64,Config{executor,version}>
         });
     }
 
@@ -70,8 +70,12 @@ module layerzero::executor_config {
             version == vector::length(&registry.executors) + 1,
             error::invalid_argument(ELAYERZERO_INVALID_VERSION)
         );
-        vector::push_back(&mut registry.executors, type_info);
-
+        vector::push_back(&mut registry.executors, type_info); 
+    //         struct TypeInfo has copy, drop, store {
+    //     account_address: address,
+    //     module_name: vector<u8>,
+    //     struct_name: vector<u8>,
+    // }
         let event_store = borrow_global_mut<EventStore>(@layerzero);
         event::emit_event<RegisterEvent>(
             &mut event_store.register_events,

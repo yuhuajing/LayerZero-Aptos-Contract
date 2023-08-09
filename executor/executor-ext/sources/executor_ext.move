@@ -28,8 +28,8 @@ module executor_ext::executor_ext {
         let args = borrow_global<TypeArguments>(signer::address_of(account));
         assert!(type_args == args.types, 2);
 
-        let type_args = vector<type_info::TypeInfo>[type_info::type_of<ExampleType>()];
-        build_lz_receive_types(account, type_args);
+        let type_args = vector<type_info::TypeInfo>[type_info::type_of<ExampleType>()]; 
+        build_lz_receive_types(account, type_args); // remove all before things and update the type to the new type_args
         let args = borrow_global<TypeArguments>(signer::address_of(account));
         assert!(type_args == args.types, 3)
     }

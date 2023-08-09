@@ -16,6 +16,10 @@ module layerzero::bulletin {
         // bytes -> bytes
         values: Table<vector<u8>, vector<u8>>,
     }
+    //     struct SemVer has drop, store, copy {
+    //     major: u64,
+    //     minor: u8,
+    // }
 
     struct MsgLibBulletin has key {
         // msglib version -> bulletin
@@ -29,7 +33,7 @@ module layerzero::bulletin {
     }
 
     public(friend) fun init_ua_bulletin<UA>(account: &signer) {
-        assert_type_signer<UA>(account);
+        assert_type_signer<UA>(account); // address_Addr::moudule_name  only the address_Addrcould init the UA
         move_to(account, Bulletin {
             values: table::new()
         })

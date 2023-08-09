@@ -11,7 +11,7 @@ module layerzero_common::packet {
         dst_chain_id: u64, // u16
         dst_address: vector<u8>,
         nonce: u64,
-        payload: vector<u8>
+        payload: vector<u8> //any data that AppA wants to send to AppB
     }
 
     public fun new_packet(src_chain_id: u64, src_address: vector<u8>, dst_chain_id: u64, dst_address: vector<u8>, nonce: u64, payload: vector<u8>): Packet {

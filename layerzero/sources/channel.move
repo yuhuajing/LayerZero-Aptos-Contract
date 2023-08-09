@@ -1,9 +1,9 @@
 // a channel is defined by its path identifier (src, dst) and its nonce states
 // the channel only interacts with the endpoint with
 //     (1) outbound() on endpoint.send() -> outbound_nonce++
-//     (2) receive() on endpoint.receive() from msglib -> insert the payload into the Channel
+//     (2) receive() on endpoint.receive() from msglib -> insert the payload into the Channel  receve immediately after the use has send the tx in the sender_chain
 //          note that the packets can arrive out of order
-//     (3) inbound() receive on endpoint.lz_receive() -> inbound_nonce++
+//     (3) inbound() receive on endpoint.lz_receive() -> inbound_nonce++  receive only when the tx has been blocked in the sender_chain
 //          packets are consumed by order
 module layerzero::channel {
     use aptos_std::table::{Self, Table};
@@ -57,14 +57,14 @@ module layerzero::channel {
     }
 
     public(friend) fun register<UA>(account: &signer) {
-        assert_type_signer<UA>(account);
+        assert_type_signer<UA>(account); // ADDR of the module  only the owner of the module could register channels resources.
         move_to(account, Channels {
             states: table::new()
         });
     }
 
     public(friend) fun receive<UA>(src_chain_id: u64, src_address: vector<u8>, nonce: u64, payload_hash: vector<u8>) acquires Channels, EventStore {
-        let ua_address = type_address<UA>();
+        let ua_address = type_address<UA>(); // the owner of the module @layerzero
         let channels = borrow_global_mut<Channels>(ua_address);
         let channel = get_channel_mut(channels, src_chain_id, src_address);
 
@@ -112,7 +112,8 @@ module layerzero::channel {
 
         channel.inbound_nonce = channel.inbound_nonce + 1;
         assert!(table::contains(&channel.payload_hashs, channel.inbound_nonce), error::not_found(ELAYERZERO_INVALID_NONCE));
-
+//execute by order
+// only execute once
         let hash = table::remove(&mut channel.payload_hashs, channel.inbound_nonce);
 
         // emit the receive event
@@ -268,7 +269,7 @@ module layerzero::channel {
         let (nonce, _) = inbound<TestUA>(src_chain_id, src_address);
         assert!(nonce == 1, 0);
 
-        // nonce 1 is outdated
+        // nonce 1 is outdated nonce > inbound_nonce
         receive<TestUA>(src_chain_id, src_address, 1, x"01");
     }
 
