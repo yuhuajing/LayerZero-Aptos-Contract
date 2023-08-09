@@ -16,11 +16,13 @@ module layerzero::msglib_config {
     const ELAYERZERO_MSGLIB_UNREGISTERED: u64 = 0x03;
     const ELAYERZERO_INVALID_MSGLIB: u64 = 0x04;
 
+// User TypeInfo{addr,moduleName,StructName}: SemVer Version{major,minor}
     struct MsgLibRegistry has key {
         type_to_version: Table<TypeInfo, SemVer>,
         version_to_type: Table<SemVer, TypeInfo>,
     }
 
+//Sender_chain_version shoule equal to Receiver_chain_version
     // default config will be stored at @layerzero
     // ua's config will be stored at @ua
     struct MsgLibConfig has key {
@@ -41,7 +43,7 @@ module layerzero::msglib_config {
     }
 
     fun init_module(account: &signer) {
-        move_to(account, MsgLibRegistry {
+        move_to(account, MsgLibRegistry { // register new user
             type_to_version: table::new(),
             version_to_type: table::new(),
         });
@@ -51,15 +53,19 @@ module layerzero::msglib_config {
         });
 
         // the default configuration
-        move_to(account, MsgLibConfig {
+        move_to(account, MsgLibConfig { //chainId -> version
             send_version: table::new(),
             receive_version: table::new(),
         });
     }
 
     //
-    // msglib auth only
+    // msglib auth only register user info to the version
     //
+    //     public fun is_msglib_registered<MSGLIB>(): bool acquires MsgLibRegistry {
+    //     let registry = borrow_global<MsgLibRegistry>(@layerzero);
+    //     table::contains(&registry.type_to_version, type_of<MSGLIB>())
+    // }
     public(friend) fun register_msglib<MSGLIB>(version: SemVer) acquires MsgLibRegistry, EventStore {
         assert!(!is_msglib_registered<MSGLIB>(), error::already_exists(ELAYERZERO_MSGLIB_EXISTED));
         assert!(!semver::is_blocking_or_default(&version), error::invalid_argument(ELAYERZERO_INVALID_VERSION));

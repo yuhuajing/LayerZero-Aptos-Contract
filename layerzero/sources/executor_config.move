@@ -19,9 +19,15 @@ module layerzero::executor_config {
 
     struct ExecutorRegistry has key {
         // version = index + 1
-        executors: vector<TypeInfo>,
+        executors: vector<TypeInfo>, 
     }
-
+    // struct TypeInfo has copy, drop, store {
+    //     account_address: address,
+    //     module_name: vector<u8>,
+    //     struct_name: vector<u8>,
+    // }
+    
+    //sender_chain_version needs to equal to the receiver_chain_version
     struct Config has drop, store {
         executor: address,
         version: u64,
@@ -57,6 +63,7 @@ module layerzero::executor_config {
 
     //
     // admin functions
+    // <EXECUTOR> identify different executors by different struct_name
     //
     public(friend) fun register_executor<EXECUTOR>(version: u64) acquires ExecutorRegistry, EventStore {
         let registry = borrow_global_mut<ExecutorRegistry>(@layerzero);
@@ -71,11 +78,7 @@ module layerzero::executor_config {
             error::invalid_argument(ELAYERZERO_INVALID_VERSION)
         );
         vector::push_back(&mut registry.executors, type_info); 
-    //         struct TypeInfo has copy, drop, store {
-    //     account_address: address,
-    //     module_name: vector<u8>,
-    //     struct_name: vector<u8>,
-    // }
+
         let event_store = borrow_global_mut<EventStore>(@layerzero);
         event::emit_event<RegisterEvent>(
             &mut event_store.register_events,
@@ -85,13 +88,15 @@ module layerzero::executor_config {
             },
         );
     }
-
+//executors: [A] [A,B] [A,B,C] 
+//version:    1    2      3
+// set a exectors by providing a version <= the latest version[length[executors]]
     public entry fun set_default_executor(account: &signer, chain_id: u64, version: u64, executor: address) acquires ConfigStore, ExecutorRegistry {
-        admin::assert_config_admin(account);
+        admin::assert_config_admin(account); // admin account
         assert_u16(chain_id);
         assert!(is_valid_version(version), error::invalid_argument(ELAYERZERO_INVALID_VERSION));
         assert!(executor != @0x00, error::invalid_argument(ELAYERZERO_INVALID_EXECUTOR));
-
+//chainID-->Config(executors,version)
         let store = borrow_global_mut<ConfigStore>(@layerzero);
         table::upsert(&mut store.config, chain_id, Config { version, executor });
     }
@@ -105,7 +110,7 @@ module layerzero::executor_config {
             config: table::new(),
         });
     }
-
+// UA account
     public(friend) fun set_executor<UA>(chain_id: u64, version: u64, executor: address) acquires ConfigStore, ExecutorRegistry {
         assert!(
             version == DEFAULT_VERSION || is_valid_version(version),
@@ -173,16 +178,26 @@ module layerzero::executor_config {
 
     #[test_only]
     struct TestExecutorV1 {}
+    // struct TypeInfo has copy, drop, store {
+    //     account_address: test,
+    //     module_name: executor_test,
+    //     struct_name: TestExecutorV1,
+    // }
 
     #[test_only]
     struct TestExecutorV2 {}
+        // struct TypeInfo has copy, drop, store {
+    //     account_address: test,
+    //     module_name: executor_test,
+    //     struct_name: TestExecutorV2,
+    // }
 
     #[test_only]
     struct TestExecutorV3 {}
 
     #[test_only]
     public fun init_module_for_test(account: &signer) {
-        init_module(account);
+        init_module(account); //register the executors && emit events && chain_id-->(executor,version)resource
     }
 
     #[test_only]
@@ -191,14 +206,14 @@ module layerzero::executor_config {
         use aptos_framework::aptos_account;
 
         aptos_account::create_account(signer::address_of(lz));
-        admin::init_module_for_test(lz);
+        admin::init_module_for_test(lz); //LZ is the admin address
         init_module_for_test(lz);
 
         // only register executor v1 and v2 expect for v3
         register_executor<TestExecutorV1>(1);
         register_executor<TestExecutorV2>(2);
 
-        init_executor_config<TestUa>(ua);
+        init_executor_config<TestUa>(ua); //UA achieve itselves resource  chain_id-->(executor,version)resource
     }
 
     #[test(lz = @layerzero, ua = @test)]
@@ -217,10 +232,11 @@ module layerzero::executor_config {
     #[expected_failure(abort_code = 0x80000)]
     fun test_reregister_executor(lz: &signer, ua: &signer)  acquires ExecutorRegistry, EventStore {
         setup(lz, ua);
+        //deplicated the registration
         register_executor<TestExecutorV1>(3);
     }
 
-    #[test(lz = @layerzero, ua = @test)]
+    #[test(lz = @layerzero, ua = @test)] //admin acts
     fun test_set_default_executor(lz: &signer, ua: &signer) acquires ConfigStore, ExecutorRegistry, EventStore {
         setup(lz, ua);
 
@@ -242,6 +258,7 @@ module layerzero::executor_config {
     #[expected_failure(abort_code = 0x10001)]
     fun test_set_default_executor_to_default_version(lz: &signer, ua: &signer) acquires ConfigStore, ExecutorRegistry, EventStore {
         setup(lz, ua);
+        // version >0 
         set_default_executor(lz, 1, DEFAULT_VERSION, @0x01);
     }
 
@@ -249,6 +266,7 @@ module layerzero::executor_config {
     #[expected_failure(abort_code = 0x10001)]
     fun test_set_default_executor_to_invalid_version(lz: &signer, ua: &signer) acquires ConfigStore, ExecutorRegistry, EventStore {
         setup(lz, ua);
+        //version <= latestVersion(length[executors])
         set_default_executor(lz, 1, 3, @0x01);
     }
 
