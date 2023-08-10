@@ -34,26 +34,26 @@ module layerzero::endpoint {
         local_chain_id: u64,
     }
 
-    struct UaRegistry has key {
+    struct UaRegistry has key { //user agent register
         register_events: EventHandle<TypeInfo>,
         ua_infos: Table<address, TypeInfo>
     }
 
     struct Capabilities has key {
-        send_caps: Table<SemVer, MsgLibSendCapability>,
-        executor_caps: Table<u64, ExecutorCapability>
+        send_caps: Table<SemVer, MsgLibSendCapability>, // version{major,minor}
+        executor_caps: Table<u64, ExecutorCapability> // version:u64
     }
 
     //
     // layerzero admin functions
     //
     public entry fun init(account: &signer, local_chain_id: u64) {
-        assert_signer(account, @layerzero);
+        assert_signer(account, @layerzero); // 
         assert_u16(local_chain_id);
 
         // assert the endpoint has not been initialized
         assert!(
-            !exists<ChainConfig>(@layerzero),
+            !exists<ChainConfig>(@layerzero), //the user's chain
             error::already_exists(ELAYERZERO_STORE_ALREADY_PUBLISHED)
         );
 
@@ -73,11 +73,11 @@ module layerzero::endpoint {
     }
     
     //
-    // Executor Auth only
+    // Executor Auth only 
     //
     public entry fun register_executor<EXECUTOR>(account: &signer) acquires Capabilities {
         let (next_version, cap) = executor_cap::new_version(account); //authenticated in function
-        executor_config::register_executor<EXECUTOR>(next_version);
+        executor_config::register_executor<EXECUTOR>(next_version); //push the executor to the array [executor]:version
 
         let caps = borrow_global_mut<Capabilities>(@layerzero);
         table::add(&mut caps.executor_caps, next_version, cap);
@@ -107,16 +107,16 @@ module layerzero::endpoint {
         insert_ua<UA>(account);
 
         // init message channel
-        channel::register<UA>(account);
+        channel::register<UA>(account); // channels info {chain_id,addr}:{outbound_nonce,inbound_nonce,payload_hash}
 
         // init msglib configuration
         msglib_config::init_msglib_config<UA>(account);
 
         // insert executor configuration
-        executor_config::init_executor_config<UA>(account);
+        executor_config::init_executor_config<UA>(account); //{chain_id-->senderVersion, chain_id-->receiverVersion}
 
         // init bulletin
-        bulletin::init_ua_bulletin<UA>(account);
+        bulletin::init_ua_bulletin<UA>(account);//key:value
 
         // return ua capability
         UaCapability<UA> {}
@@ -127,7 +127,7 @@ module layerzero::endpoint {
         assert_type_signer<UA>(account);
 
         let regsitry = borrow_global_mut<UaRegistry>(@layerzero);
-        let type_address = type_address<UA>();
+        let type_address = type_address<UA>(); // UA address
         assert!(
             !table::contains(&regsitry.ua_infos, type_address),
             error::already_exists(ELAYERZERO_UA_ALREADY_REGISTERED)

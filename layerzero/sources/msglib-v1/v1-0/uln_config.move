@@ -23,8 +23,8 @@ module layerzero::uln_config {
     const CONFIG_TYPE_OUTBOUND_CONFIRMATIONS: u8 = 3;
 
     struct UlnConfig has copy, drop, store {
-        oracle: address,
-        relayer: address,
+        oracle: address, // dst block_id
+        relayer: address, //package tx relayer_args
         inbound_confirmations: u64,
         outbound_confirmations: u64
     }
@@ -54,11 +54,11 @@ module layerzero::uln_config {
     // layerzero only functions
     //
     fun init_module(account: &signer) {
-        move_to(account, DefaultUlnConfig {
-            config: table::new(),
+        move_to(account, DefaultUlnConfig {  // chain id -> uln config
+            config: table::new(), 
         });
 
-        move_to(account, UaUlnConfig {
+        move_to(account, UaUlnConfig { // ua address + chain id -> uln config
             config: table::new(),
         });
 
@@ -66,7 +66,7 @@ module layerzero::uln_config {
             chain_address_size: table::new(),
         });
     }
-
+//admin only
     public entry fun set_chain_address_size(account: &signer, chain_id: u64, size: u64) acquires ChainConfig {
         admin::assert_config_admin(account);
         assert_u16(chain_id);
@@ -78,7 +78,7 @@ module layerzero::uln_config {
         );
         table::add(&mut chain_config_store.chain_address_size, chain_id, size);
     }
-
+//admin only
     public entry fun set_default_config(
         account: &signer,
         chain_id: u64,
@@ -97,7 +97,7 @@ module layerzero::uln_config {
         let default_config = borrow_global_mut<DefaultUlnConfig>(@layerzero);
         table::upsert(&mut default_config.config, chain_id, uln_config);
     }
-
+// chain_id + addr ==> config{relayer,oracle, inbound_confirmations, outbound_confirmations}
     public(friend) fun set_ua_config<UA>(
         chain_id: u64,
         config_type: u8,

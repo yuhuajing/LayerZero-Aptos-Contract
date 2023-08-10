@@ -247,7 +247,7 @@ module layerzero::msglib_config {
         init_module_for_test(lz);
 
         // only register msglibs v1 and v2 expect for v3
-        register_msglib<TestMsgLibV1>(semver::build_version(1, 0));
+        register_msglib<TestMsgLibV1>(semver::build_version(1, 0)); // user register version-->type
         register_msglib<TestMsgLibV2>(semver::build_version(2, 0));
 
         init_msglib_config<TestUa>(ua);
@@ -269,6 +269,7 @@ module layerzero::msglib_config {
     #[expected_failure(abort_code = 0x80000)]
     fun test_reregister_msglib(lz: &signer, auth: &signer, ua: &signer)  acquires MsgLibRegistry, EventStore {
         setup(lz, auth, ua);
+        //duplicate
         register_msglib<TestMsgLibV1>(semver::build_version(1, 0));
     }
 
@@ -278,8 +279,8 @@ module layerzero::msglib_config {
 
         // set default send to v1 and receive msglib to v2
         let chain_id = 1;
-        set_default_send_msglib(lz, chain_id, 1, 0);
-        set_default_receive_msglib(lz, chain_id, 2, 0);
+        set_default_send_msglib(lz, chain_id, 1, 0); //admin only
+        set_default_receive_msglib(lz, chain_id, 2, 0); //admin only
         assert!(get_default_send_msglib(chain_id) ==  semver::build_version(1, 0), 0);
         assert!(get_default_receive_mgslib(chain_id) ==  semver::build_version(2, 0), 0);
 
@@ -300,6 +301,7 @@ module layerzero::msglib_config {
     #[expected_failure(abort_code = 0x10001)]
     fun test_set_default_msglib_to_default_version(lz: &signer, auth: &signer, ua: &signer) acquires MsgLibConfig, MsgLibRegistry, EventStore {
         setup(lz, auth, ua);
+        //
         set_default_send_msglib(lz, 1, 0, 0);
     }
 
@@ -307,6 +309,7 @@ module layerzero::msglib_config {
     #[expected_failure(abort_code = 0x10001)]
     fun test_set_default_msglib_to_invalid_version(lz: &signer, auth: &signer, ua: &signer) acquires MsgLibConfig, MsgLibRegistry, EventStore {
         setup(lz, auth, ua);
+        // version is blocking || is_registed
         set_default_send_msglib(lz, 1, 3, 0);
     }
 
@@ -348,6 +351,7 @@ module layerzero::msglib_config {
     #[expected_failure(abort_code = 0x10001)]
     fun test_ua_set_msglib_to_invalid_version(lz: &signer, auth: &signer, ua: &signer) acquires MsgLibConfig, MsgLibRegistry, EventStore {
         setup(lz, auth, ua);
+        //version is blocking or default || is_registered
         set_send_msglib<TestUa>(1, semver::build_version(3, 0));
     }
 
